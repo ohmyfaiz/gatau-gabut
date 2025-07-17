@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Galactic Voyager</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <style>
+        /* General Body and Game Container Styling */
+        body {
+            background-color: #1a1a2e;
+            color: #e0e0e0;
+            font-family: 'Press Start 2P', cursive;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            flex-direction: column;
+            text-align: center;
+            overflow: hidden; /* Prevent scrollbars */
+        }
+        #gameContainer {
+            border: 5px solid #0d0d1a;
+            box-shadow: 0 0 20px #e0b1cb, inset 0 0 15px #1a1a2e;
+            background-color: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        canvas {
+            display: block;
+            background-color: #0d0d1a;
+        }
+
+        /* UI Overlay Styling (Score, Lives, etc.) */
+        #ui-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            pointer-events: none;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+        .top-bar {
+            display: flex;
+            flex-direction: column; /* Stack items vertically */
+            align-items: center; /* Center items horizontally */
+            gap: 10px; /* Space between score/level and lives */
+            background: rgba(26, 26, 46, 0.7);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 2px solid #e0b1cb;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+        }
+        .score-display, .level-display {
+            font-size: 16px;
+            text-shadow: 2px 2px 4px #000;
+        }
+        .score-value, .level-value {
+            color: #ffd700;
+            margin-left: 10px;
+        }
+        #lives-container {
+            display: flex;
+            gap: 8px; /* Space between hearts */
+        }
+        .heart-icon svg {
+            filter: drop-shadow(0 0 3px #ff4d4d);
+        }
+
+
+        /* Start and Game Over Screen Styling */
+        #game-over-screen, #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            text-align: center;
+            pointer-events: all;
+            z-index: 100;
+        }
+        h1 {
+            font-size: 2.5em;
+            color: #e0b1cb;
+            text-shadow: 3px 3px 0px #9a7f95;
+            margin-bottom: 20px;
+        }
+        p {
+            font-size: 1em;
+            margin-bottom: 30px;
+            line-height: 1.5;
+            max-width: 80%;
+        }
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .start-button, .gemini-button {
+            padding: 15px 30px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 1.2em;
+            color: #1a1a2e;
+            background: linear-gradient(145deg, #ffd700, #f0c400);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #c8a200;
+            transition: all 0.1s ease-in-out;
+            text-align: center;
+        }
+        .gemini-button {
+            background: linear-gradient(145deg, #3498db, #2980b9);
+            box-shadow: 0 5px 0 #216a94;
+            color: white;
+            font-size: 0.8em;
+        }
+        .start-button:active, .gemini-button:active {
+            transform: translateY(5px);
+            box-shadow: 0 0 0 #c8a200;
+        }
+        .controls-info {
+            margin-top: 20px;
+            margin-left: 50px;
+            font-size: 0.8em;
+        }
+        .tzy {
+          margin-top: 10px;
+          margin-left: 40px;
+          font-size: 0.2em;
+        }
+
+        /* On-Screen Controls Styling */
+        #controls-container {
+            position: absolute;
+            bottom: 20px; /* Moved controls lower */
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 30px;
+            box-sizing: border-box;
+            z-index: 50;
+            pointer-events: none; /* Container doesn't block clicks */
+        }
+        .control-button {
+            width: 70px;
+            height: 70px;
+            background-color: rgba(224, 177, 203, 0.4);
+            border: 3px solid rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            font-family: 'Press Start 2P', cursive;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            user-select: none; /* Prevents text selection */
+            -webkit-user-select: none; /* For Safari */
+            pointer-events: all; /* Buttons are clickable */
+            transition: background-color 0.1s;
+        }
+        .control-button:active {
+            background-color: rgba(224, 177, 203, 0.8);
+        }
+        #shoot-button {
+            width: 90px;
+            height: 90px;
+            font-size: 14px;
+            background-color: rgba(255, 215, 0, 0.4);
+        }
+        #shoot-button:active {
+            background-color: rgba(255, 215, 0, 0.8);
+        }
+        .move-controls {
+            display: flex;
+            gap: 20px;
+        }
+
+        /* Modal Styling for Gemini Report */
+        #report-modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .modal-content {
+            background: #1a1a2e;
+            border: 3px solid #e0b1cb;
+            border-radius: 10px;
+            padding: 25px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            text-align: left;
+        }
+        .modal-content h2 {
+            font-size: 1.5em;
+            color: #e0b1cb;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .modal-content p {
+            font-size: 0.8em;
+            line-height: 1.6;
+            white-space: pre-wrap; /* Preserve line breaks from API */
+        }
+        .close-modal {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 1em;
+        }
+    </style>
+</head>
+<body>
+    <!-- Main container for the game canvas and UI overlays -->
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <div id="ui-container">
+            <div class="top-bar">
+                <div class="info-row">
+                    <div class="score-display">SCORE: <span id="score" class="score-value">0</span></div>
+                    <div class="level-display">LEVEL: <span id="level" class="level-value">1</span></div>
+                </div>
+                <div id="lives-container"></div>
+            </div>
+        </div>
+        <div id="start-screen">
+            <h1>Galactic Voyager</h1>
+            <p>Kendalikan pesawat penjelajah galaksi dan bertarung di antara awan kosmik. Kalahkan musuh dan kumpulkan esensi bintang!</p>
+            <button class="start-button">START GAME</button>
+            <div class="controls-info">
+                <p>Gunakan tombol di layar untuk bermain.</p>
+            </div>
+            <div class="tzy">
+              <p>demo game by alfaiz</p>
+            </div>
+        </div>
+        <div id="game-over-screen" style="display: none;">
+            <h1>GAME OVER</h1>
+            <p>Skor Akhir Anda: <span id="final-score">0</span></p>
+            <div class="button-group">
+                <button class="start-button">RESTART</button>
+                <button class="gemini-button" id="generate-report-button">✨ Buat Laporan Pertempuran</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- On-screen controls -->
+    <div id="controls-container">
+        <div class="move-controls">
+            <button class="control-button" id="left-button">&lt;</button>
+            <button class="control-button" id="right-button">&gt;</button>
+        </div>
+        <button class="control-button" id="shoot-button">FIRE</button>
+    </div>
+
+    <!-- Modal for Gemini Battle Report -->
+    <div id="report-modal">
+        <div class="modal-content">
+            <h2>Laporan Pertempuran</h2>
+            <p id="report-text">Membuat laporan...</p>
+            <button class="start-button close-modal">Tutup</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Pengaturan Ukuran Canvas Responsif
+        const gameContainer = document.getElementById('gameContainer');
+        let canvasWidth = Math.min(window.innerWidth, 600);
+        let canvasHeight = Math.min(window.innerHeight, 800);
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        gameContainer.style.width = `${canvasWidth}px`;
+        gameContainer.style.height = `${canvasHeight}px`;
+
+        // UI Elements
+        const scoreEl = document.getElementById('score');
+        const livesContainer = document.getElementById('lives-container');
+        const levelEl = document.getElementById('level');
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const startButton = document.querySelector('#start-screen .start-button');
+        const restartButton = document.querySelector('#game-over-screen .start-button');
+        const finalScoreEl = document.getElementById('final-score');
+        const generateReportButton = document.getElementById('generate-report-button');
+        const reportModal = document.getElementById('report-modal');
+        const reportTextEl = document.getElementById('report-text');
+        const closeModalButton = document.querySelector('.close-modal');
+
+        // Control Button Elements
+        const leftButton = document.getElementById('left-button');
+        const rightButton = document.getElementById('right-button');
+        const shootButton = document.getElementById('shoot-button');
+
+        // --- Sound and Music Setup (Tone.js) ---
+        let music;
+
+        function setupMusic() {
+            // Synthesizer for the music
+            const synth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "pulse", width: 0.2 },
+                envelope: { attack: 0.01, decay: 0.1, sustain: 0.2, release: 0.4 },
+            }).toDestination();
+            synth.volume.value = -18; // Lower volume for background music
+
+            // Bass line
+            const bass = new Tone.MonoSynth({
+                oscillator: { type: "fmsquare" },
+                envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.4 }
+            }).toDestination();
+            bass.volume.value = -12;
+
+            const bassPattern = new Tone.Sequence((time, note) => {
+                bass.triggerAttackRelease(note, "8n", time);
+            }, ["C2", "C2", "G1", "G1", "A#1", "A#1", "G1", "G1"], "4n");
+
+            // Arpeggiated melody
+            const melodyPattern = new Tone.Pattern((time, note) => {
+                synth.triggerAttackRelease(note, "16n", time);
+            }, ["C4", "E4", "G4", "C5", "E5", "G4", "E4"], "randomWalk");
+
+            // Combine patterns into a single loop object
+            music = {
+                bass: bassPattern,
+                melody: melodyPattern,
+                start: () => {
+                    music.bass.start(0);
+                    music.melody.start(0);
+                    Tone.Transport.start();
+                },
+                stop: () => {
+                    Tone.Transport.stop();
+                    // Clear all scheduled events to prevent overlap on restart
+                    Tone.Transport.cancel(); 
+                }
+            };
+        }
+
+        const sfx = {
+            shoot: new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.1 } }).toDestination(),
+            explosion: new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0 } }).toDestination(),
+            playerHit: new Tone.Synth({ oscillator: { type: 'sawtooth' }, envelope: { attack: 0.01, decay: 0.5, sustain: 0, release: 0.1 } }).toDestination(),
+            collect: new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.1 } }).toDestination(),
+            gameOver: new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.1, decay: 1, sustain: 0, release: 0.1 } }).toDestination()
+        };
+        sfx.shoot.volume.value = -15;
+        sfx.explosion.volume.value = -10;
+        sfx.playerHit.volume.value = -5;
+        sfx.collect.volume.value = -10;
+        sfx.gameOver.volume.value = -5;
+
+        // Game Variables
+        let score = 0;
+        let lives = 3;
+        let level = 1;
+        let gameOver = false;
+        let gameRunning = false;
+        
+        // Control state object
+        const controls = {
+            left: false,
+            right: false,
+            shoot: false
+        };
+
+        // Player
+        const player = {
+            x: canvas.width / 2 - 25,
+            y: canvas.height - 180, // Moved player ship up
+            width: 50,
+            height: 60,
+            speed: 7,
+            dx: 0,
+            shootCooldown: 0,
+            maxCooldown: 15,
+        };
+
+        // Arrays untuk menyimpan objek game
+        let projectiles = [];
+        let enemies = [];
+        let enemyProjectiles = [];
+        let orbs = [];
+        let stars = [];
+
+        // --- Class Definitions ---
+        class Projectile {
+            constructor(x, y, color = '#ffc0cb') {
+                this.x = x; this.y = y; this.width = 5; this.height = 15; this.speed = 10; this.color = color;
+            }
+            update() { this.y -= this.speed; }
+            draw() {
+                ctx.fillStyle = this.color; ctx.shadowColor = this.color; ctx.shadowBlur = 10;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        class Enemy {
+            constructor() {
+                this.width = 40; this.height = 40;
+                this.x = Math.random() * (canvas.width - this.width);
+                this.y = -this.height;
+                this.speed = 2 + Math.random() * level;
+                this.shootInterval = Math.floor(Math.random() * 120 + 60);
+                this.shootTimer = 0;
+            }
+            update() {
+                this.y += this.speed;
+                this.shootTimer++;
+                if (this.shootTimer >= this.shootInterval) {
+                    enemyProjectiles.push(new EnemyProjectile(this.x + this.width / 2, this.y + this.height));
+                    this.shootTimer = 0;
+                }
+            }
+            draw() {
+                ctx.fillStyle = '#9a7f95'; ctx.beginPath();
+                ctx.moveTo(this.x, this.y + this.height);
+                ctx.quadraticCurveTo(this.x + this.width / 2, this.y - this.height * 0.5, this.x + this.width, this.y + this.height);
+                ctx.closePath(); ctx.fill();
+                ctx.fillStyle = '#ff4d4d'; ctx.beginPath();
+                ctx.arc(this.x + this.width * 0.3, this.y + this.height * 0.6, 4, 0, Math.PI * 2);
+                ctx.arc(this.x + this.width * 0.7, this.y + this.height * 0.6, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        class EnemyProjectile {
+            constructor(x, y) {
+                this.x = x; this.y = y; this.radius = 6; this.speed = 4; this.color = '#4ddbff';
+            }
+            update() { this.y += this.speed; }
+            draw() {
+                ctx.fillStyle = this.color; ctx.shadowColor = this.color; ctx.shadowBlur = 15;
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+        
+        class Orb {
+            constructor(x, y) {
+                this.x = x; this.y = y; this.radius = 8; this.speed = 2; this.color = '#ffd700';
+            }
+            update() { this.y += this.speed; }
+            draw() {
+                ctx.fillStyle = this.color; ctx.shadowColor = '#ffff00'; ctx.shadowBlur = 15;
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        class Star {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.radius = Math.random() * 1.5;
+                this.speed = 0.5 + Math.random() * 0.5;
+            }
+            update() {
+                this.y += this.speed;
+                if (this.y > canvas.height) {
+                    this.y = 0; this.x = Math.random() * canvas.width;
+                }
+            }
+            draw() {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'; ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill();
+            }
+        }
+
+        // --- Game Functions ---
+        function createStars() {
+            for (let i = 0; i < 100; i++) { stars.push(new Star()); }
+        }
+
+        function drawPlayer() {
+            const bodyGradient = ctx.createLinearGradient(player.x, player.y, player.x, player.y + player.height);
+            bodyGradient.addColorStop(0, '#8e44ad'); bodyGradient.addColorStop(0.5, '#3498db'); bodyGradient.addColorStop(1, '#e74c3c');
+            ctx.fillStyle = bodyGradient;
+            ctx.beginPath();
+            ctx.moveTo(player.x + player.width / 2, player.y);
+            ctx.lineTo(player.x, player.y + player.height * 0.85);
+            ctx.lineTo(player.x + player.width * 0.3, player.y + player.height);
+            ctx.lineTo(player.x + player.width * 0.7, player.y + player.height);
+            ctx.lineTo(player.x + player.width, player.y + player.height * 0.85);
+            ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#1abc9c'; ctx.shadowColor = '#1effd8'; ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(player.x + player.width / 2, player.y + player.height * 0.4, player.width * 0.18, 0, Math.PI * 2);
+            ctx.fill(); ctx.shadowBlur = 0;
+            const flameHeight = 10 + Math.random() * 8;
+            ctx.fillStyle = '#f1c40f'; 
+            ctx.beginPath();
+            ctx.moveTo(player.x + player.width * 0.35, player.y + player.height);
+            ctx.lineTo(player.x + player.width * 0.65, player.y + player.height);
+            ctx.lineTo(player.x + player.width / 2, player.y + player.height + flameHeight);
+            ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#e67e22';
+            ctx.beginPath();
+            ctx.moveTo(player.x + player.width * 0.4, player.y + player.height);
+            ctx.lineTo(player.x + player.width * 0.6, player.y + player.height);
+            ctx.lineTo(player.x + player.width / 2, player.y + player.height + flameHeight * 0.6);
+            ctx.closePath(); ctx.fill();
+        }
+
+        function updatePlayer() {
+            player.dx = 0;
+            if (controls.left && player.x > 0) { player.dx = -player.speed; }
+            if (controls.right && player.x < canvas.width - player.width) { player.dx = player.speed; }
+            player.x += player.dx;
+
+            // Prevent player from moving into the control area
+            if (player.y + player.height > canvas.height - 100) {
+                player.y = canvas.height - 100 - player.height;
+            }
+
+            if (player.shootCooldown > 0) { player.shootCooldown--; }
+            if (controls.shoot && player.shootCooldown === 0) {
+                projectiles.push(new Projectile(player.x + player.width / 2 - 2.5, player.y));
+                player.shootCooldown = player.maxCooldown;
+                sfx.shoot.triggerAttackRelease('C5', '8n');
+            }
+        }
+
+        function spawnEnemy() {
+            const spawnRate = Math.max(10, 60 - level * 5);
+            if (Math.random() * spawnRate < 1) { enemies.push(new Enemy()); }
+        }
+
+        function updateObjects() {
+            stars.forEach(s => s.update());
+            projectiles.forEach((p, i) => { p.update(); if (p.y < 0) projectiles.splice(i, 1); });
+            enemies.forEach((e, i) => { e.update(); if (e.y > canvas.height) enemies.splice(i, 1); });
+            enemyProjectiles.forEach((ep, i) => { ep.update(); if (ep.y > canvas.height) enemyProjectiles.splice(i, 1); });
+            orbs.forEach((o, i) => { o.update(); if (o.y > canvas.height) orbs.splice(i, 1); });
+        }
+
+        function drawObjects() {
+            stars.forEach(s => s.draw());
+            projectiles.forEach(p => p.draw());
+            enemies.forEach(e => e.draw());
+            enemyProjectiles.forEach(ep => ep.draw());
+            orbs.forEach(o => o.draw());
+        }
+        
+        function checkCollisions() {
+            projectiles.forEach((p, pi) => {
+                enemies.forEach((e, ei) => {
+                    if (p.x < e.x + e.width && p.x + p.width > e.x && p.y < e.y + e.height && p.y + p.height > e.y) {
+                        sfx.explosion.triggerAttackRelease('8n');
+                        projectiles.splice(pi, 1); enemies.splice(ei, 1);
+                        score += 100;
+                        orbs.push(new Orb(e.x + e.width / 2, e.y + e.height / 2));
+                    }
+                });
+            });
+            enemies.forEach((e, i) => {
+                if (player.x < e.x + e.width && player.x + player.width > e.x && player.y < e.y + e.height && player.y + player.height > e.y) {
+                    enemies.splice(i, 1); handlePlayerHit();
+                }
+            });
+            enemyProjectiles.forEach((ep, i) => {
+                const dist = Math.hypot(player.x + player.width / 2 - ep.x, player.y + player.height / 2 - ep.y);
+                if (dist < player.width / 2 + ep.radius) {
+                    enemyProjectiles.splice(i, 1); handlePlayerHit();
+                }
+            });
+            orbs.forEach((o, i) => {
+                 const dist = Math.hypot(player.x + player.width / 2 - o.x, player.y + player.height / 2 - o.y);
+                if (dist < player.width / 2 + o.radius) {
+                    sfx.collect.triggerAttackRelease('G5', '16n');
+                    orbs.splice(i, 1); score += 50;
+                }
+            });
+        }
+
+        function handlePlayerHit() {
+            if (gameOver) return;
+            sfx.playerHit.triggerAttackRelease('G2', '8n');
+            lives--;
+            drawLives(); // Update heart display
+            if (lives <= 0) { lives = 0; endGame(); }
+        }
+
+        function drawLives() {
+            livesContainer.innerHTML = ''; // Clear existing hearts
+            for (let i = 0; i < lives; i++) {
+                // Using an inline SVG for the heart shape.
+                const heartSvg = `
+                    <div class="heart-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="#ff4d4d" stroke="#fff" stroke-width="1.5">
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                        </svg>
+                    </div>
+                `;
+                livesContainer.innerHTML += heartSvg;
+            }
+        }
+
+        function updateUI() {
+            scoreEl.textContent = score;
+            levelEl.textContent = level;
+            // Lives are now handled by drawLives()
+        }
+
+        function checkLevelUp() {
+            if (score >= level * 1500) {
+                level++; sfx.collect.triggerAttackRelease('C6', '8n');
+            }
+        }
+
+        function clear() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function gameLoop() {
+            if (!gameRunning || gameOver) return;
+            clear();
+            updateObjects(); spawnEnemy(); updatePlayer();
+            checkCollisions(); checkLevelUp(); updateUI();
+            drawObjects(); drawPlayer();
+            requestAnimationFrame(gameLoop);
+        }
+
+        async function startGame() {
+            await Tone.start(); console.log('Audio context started');
+            
+            // Start the music
+            if (music) music.start();
+
+            score = 0; lives = 3; level = 1;
+            gameOver = false; gameRunning = true;
+            projectiles = []; enemies = []; enemyProjectiles = []; orbs = [];
+            player.x = canvas.width / 2 - player.width / 2;
+            player.y = canvas.height - 180; // Reset player to the higher position
+            startScreen.style.display = 'none';
+            gameOverScreen.style.display = 'none';
+            sfx.collect.triggerAttackRelease('C5', '8n', Tone.now());
+            sfx.collect.triggerAttackRelease('E5', '8n', Tone.now() + 0.2);
+            sfx.collect.triggerAttackRelease('G5', '8n', Tone.now() + 0.4);
+            updateUI(); 
+            drawLives(); // Initial drawing of hearts
+            gameLoop();
+        }
+
+        function endGame() {
+            if (gameOver) return; // Prevent endGame from running multiple times
+            gameOver = true; gameRunning = false;
+            
+            // Stop the music
+            if (music) music.stop();
+
+            finalScoreEl.textContent = score;
+            gameOverScreen.style.display = 'flex';
+            sfx.gameOver.triggerAttackRelease('G3', '2n', Tone.now());
+            sfx.gameOver.triggerAttackRelease('C3', '2n', Tone.now() + 0.5);
+        }
+
+        // --- Gemini API Integration ---
+        async function generateBattleReport() {
+            reportModal.style.display = 'flex';
+            reportTextEl.textContent = 'Menganalisis data pertempuran... Harap tunggu...';
+
+            const prompt = `
+                Buat laporan pertempuran yang epik dan dramatis untuk pemain game "Galactic Voyager".
+                Pemain adalah seorang pilot pemberani yang baru saja menyelesaikan misinya.
+
+                Data Misi:
+                - Skor Akhir: ${score}
+                - Level Tercapai: ${level}
+
+                Instruksi:
+                - Tulis dalam bahasa Indonesia.
+                - Gunakan gaya bahasa yang sinematik dan heroik.
+                - Sebutkan skor dan level sebagai bagian dari narasi (misalnya, "dengan skor pertempuran ${score}" atau "mencapai peringkat pilot Level ${level}").
+                - Buat cerita singkat tentang bagaimana pilot tersebut berjuang melawan gerombolan musuh.
+                - Akhiri dengan nada yang membangkitkan semangat untuk misi selanjutnya.
+                - Jaga agar laporan tetap singkat, sekitar 3-4 paragraf.
+            `;
+            const apimem =`8731cd8d65f2ee8f3a97339d4b82b971`;
+
+            try {
+                let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                const payload = { contents: chatHistory };
+                const apiKey = "AIzaSyCKAvjMxeXfOvzr8YftULiEu4Y5Af9A7Ow"; // API key is handled by the environment
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API request failed with status ${response.status}`);
+                }
+
+                const result = await response.json();
+                
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    reportTextEl.textContent = text + `engine by gemini code by alfaiz`;
+                } else {
+                    throw new Error("Struktur respons API tidak valid atau konten kosong.");
+                }
+
+            } catch (error) {
+                console.error("Error calling Gemini API:", error);
+                reportTextEl.textContent = "Gagal membuat laporan. Terjadi kesalahan saat menghubungi pusat komando. Silakan coba lagi nanti.";
+            }
+        }
+
+        // --- Event Listeners ---
+        function setupButtonListeners(button, controlKey) {
+            button.addEventListener('touchstart', (e) => { e.preventDefault(); controls[controlKey] = true; }, { passive: false });
+            button.addEventListener('touchend', (e) => { e.preventDefault(); controls[controlKey] = false; });
+            button.addEventListener('mousedown', () => { controls[controlKey] = true; });
+            button.addEventListener('mouseup', () => { controls[controlKey] = false; });
+            button.addEventListener('mouseleave', () => { controls[controlKey] = false; });
+        }
+
+        setupButtonListeners(leftButton, 'left');
+        setupButtonListeners(rightButton, 'right');
+        setupButtonListeners(shootButton, 'shoot');
+        
+        startButton.addEventListener('click', startGame);
+        restartButton.addEventListener('click', startGame);
+        generateReportButton.addEventListener('click', generateBattleReport);
+        closeModalButton.addEventListener('click', () => {
+            reportModal.style.display = 'none';
+        });
+        
+        // Inisialisasi
+        setupMusic();
+        createStars();
+        drawLives(); // Draw initial hearts before game starts
+
+        function drawInitialState() {
+            if(gameRunning) return; // Stop this loop once game starts
+            clear();
+            stars.forEach(s => { s.update(); s.draw(); });
+            requestAnimationFrame(drawInitialState);
+        }
+        drawInitialState();
+
+    </script>
+</body>
+</html>
